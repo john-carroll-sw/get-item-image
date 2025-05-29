@@ -9,6 +9,12 @@ This repository demonstrates how to use OpenAI's Response API (with GPT-4.1 and 
 - Returns a structured response with the image URL, source URL, and extraction method.
 - Supports both Python and TypeScript (Node.js) environments.
 
+## How it Works
+
+- The script fetches the product page HTML.
+- It tries to extract the main image using Open Graph (`og:image`), a product image class, or the first image on the page.
+- The result is returned in a structured format, including the extraction method used.
+
 ## Flow Diagram
 
 ```mermaid
@@ -93,12 +99,6 @@ python get_item_image.py
 ```sh
 npx ts-node get_item_image.ts
 ```
-
-## How it Works
-
-- The script fetches the product page HTML.
-- It tries to extract the main image using Open Graph (`og:image`), a product image class, or the first image on the page.
-- The result is returned in a structured format, including the extraction method used.
 
 ## File Overview
 
