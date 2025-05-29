@@ -1,29 +1,16 @@
 import requests
 import json
 import os
-from openai import AzureOpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-
-# Load environment variables from .env file
 load_dotenv()
 
-# Get endpoint from environment variable
-endpoint = os.getenv("ENDPOINT")
-if not endpoint:
-    raise ValueError("ENDPOINT environment variable is not set in .env file")
-
-model_name = "gpt-4.1"
-deployment = "gpt-4.1"
-token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
-api_version = "2025-04-01-preview"
-
-client = AzureOpenAI(
-    api_version=api_version,
-    azure_endpoint=endpoint,
-    azure_ad_token_provider=token_provider,
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=os.getenv("AZURE_OPENAI_V1_API_ENDPOINT"),
+    default_query={"api-version": "preview"}, 
 )
 
 def extract_image_url(product_url):
@@ -63,7 +50,7 @@ tools = [{
 input_messages = [{"role": "user", "content": "Get the image for https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush"}]
 
 response = client.responses.create(
-    model=model_name,
+    model=os.environ["AZURE_OPENAI_API_MODEL"],
     input=input_messages,
     tools=tools,
     temperature=0.0,
@@ -83,7 +70,7 @@ input_messages.append({                               # append result message
 })
 
 response_2 = client.responses.create(
-    model=model_name,
+    model=os.environ["AZURE_OPENAI_API_MODEL"],
     input=input_messages,
     tools=tools,
 )

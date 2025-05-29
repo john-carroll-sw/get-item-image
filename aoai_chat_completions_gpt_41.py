@@ -1,30 +1,19 @@
 import os
-from openai import AzureOpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
 from dotenv import load_dotenv
 
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Get endpoint from environment variable
-endpoint = os.getenv("ENDPOINT")
-if not endpoint:
-    raise ValueError("ENDPOINT environment variable is not set in .env file")
-
-model_name = "gpt-4.1"
-deployment = "gpt-4.1"
-token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
-api_version = "2025-01-01-preview"
-
-
-client = AzureOpenAI(
-    api_version=api_version,
-    azure_endpoint=endpoint,
-    azure_ad_token_provider=token_provider,
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=os.getenv("AZURE_OPENAI_V1_API_ENDPOINT"),
+    default_query={"api-version": "preview"}, 
 )
 
 response = client.chat.completions.create(
+    model=os.environ["AZURE_OPENAI_API_MODEL"],
     messages=[
         {
             "role": "system",
@@ -40,7 +29,6 @@ response = client.chat.completions.create(
     top_p=1.0,
     frequency_penalty=0.0,
     presence_penalty=0.0,
-    model=deployment
 )
 
 print(response.choices[0].message.content)
