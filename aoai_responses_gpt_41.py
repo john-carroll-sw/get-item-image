@@ -10,9 +10,9 @@ client = OpenAI(
     default_query={"api-version": "preview"}, 
 )
 
-response = client.chat.completions.create(
+response = client.responses.create(
     model=os.environ["AZURE_OPENAI_API_MODEL"],
-    messages=[
+    input=[
         {
             "role": "system",
             "content": "You are a helpful assistant.",
@@ -21,12 +21,7 @@ response = client.chat.completions.create(
             "role": "user",
             "content": "I am going to Paris, what should I see?",
         }
-    ],
-    max_completion_tokens=800,
-    temperature=1.0,
-    top_p=1.0,
-    frequency_penalty=0.0,
-    presence_penalty=0.0,
+    ]
 )
 
-print(response.choices[0].message.content)
+print(response.output[0].content[0].text)
