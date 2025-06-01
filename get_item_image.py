@@ -29,16 +29,58 @@ image_schema = {
 def extract_image_url(product_url):
     response = requests.get(product_url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    # Try all strategies in order
+
+    # Amazon-specific extraction
+    if 'amazon.' in product_url:
+        # Try to get the main image from the dynamic image data attribute
+        img_tag = soup.find('img', id='landingImage')
+        data_image = img_tag['data-a-dynamic-image'] if img_tag and img_tag.has_attr('data-a-dynamic-image') else None
+        if data_image:
+            try:
+                images = json.loads(data_image)
+                first_image = next(iter(images.keys()), None)
+                if first_image:
+                    url = first_image if first_image.startswith('http') else f'https:{first_image}'
+                    return {
+                        "image_url": url,
+                        "source_url": product_url,
+                        "found_method": "amazon:data-a-dynamic-image"
+                    }
+            except Exception:
+                pass
+        # Fallback: look for og:image
+        og_image = soup.find('meta', property='og:image')
+        if og_image and og_image.get('content'):
+            return {
+                "image_url": og_image['content'],
+                "source_url": product_url,
+                "found_method": "og:image"
+            }
+        # Fallback: look for first large image in the page
+        for img in soup.find_all('img', src=True):
+            src = img['src']
+            if 'images' in src and src.endswith('.jpg'):
+                if src.startswith('//'):
+                    src = 'https:' + src
+                return {
+                    "image_url": src,
+                    "source_url": product_url,
+                    "found_method": "amazon:img[src]"
+                }
+
+    # Generic strategies
     strategies = [
         (soup.find('meta', property='og:image'), 'content', 'og:image'),
         (soup.find('img', {'class': 'product__media'}), 'src', 'product__media'),
         (soup.find('img'), 'src', 'first_img'),
     ]
     for tag, attr, method in strategies:
-        if tag and tag.get(attr):
+        val = tag[attr] if tag and tag.has_attr(attr) else None
+        if val and val.startswith('//'):
+            val = 'https:' + val
+        if val:
             return {
-                "image_url": tag[attr],
+                "image_url": val,
                 "source_url": product_url,
                 "found_method": method
             }

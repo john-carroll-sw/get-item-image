@@ -27,13 +27,63 @@ const imageSchema = {
 async function extractImageUrl(productUrl: string) {
   const response = await axios.get(productUrl);
   const $ = cheerio.load(response.data);
+
+  // Amazon-specific extraction
+  if (productUrl.includes('amazon.')) {
+    // Try to get the main image from the dynamic image data attribute
+    const imgTag = $('#imgTagWrapperId img');
+    const dataImage = imgTag.attr('data-a-dynamic-image');
+    if (dataImage) {
+      try {
+        const images = JSON.parse(dataImage);
+        const firstImage = Object.keys(images)[0];
+        if (firstImage) {
+          return {
+            image_url: firstImage.startsWith('http') ? firstImage : `https:${firstImage}`,
+            source_url: productUrl,
+            found_method: 'amazon:data-a-dynamic-image',
+          };
+        }
+      } catch (e) {
+        // fallback to next strategies
+      }
+    }
+    // Fallback: look for og:image
+    const ogImage = $("meta[property='og:image']").attr('content');
+    if (ogImage) {
+      return {
+        image_url: ogImage,
+        source_url: productUrl,
+        found_method: 'og:image',
+      };
+    }
+    // Fallback: look for first large image in the page
+    const largeImg = $("img[src]").filter((_, el) => {
+      const src = $(el).attr('src');
+      return !!src && src.includes('images') && src.endsWith('.jpg');
+    }).first();
+    if (largeImg.length) {
+      let src = largeImg.attr('src');
+      if (src && src.startsWith('//')) src = 'https:' + src;
+      if (src) {
+        return {
+          image_url: src,
+          source_url: productUrl,
+          found_method: 'amazon:img[src]',
+        };
+      }
+    }
+  }
+
+  // Generic strategies
   const strategies: [cheerio.Cheerio<any>, string, string][] = [
     [$("meta[property='og:image']"), "content", "og:image"],
     [$("img.product__media"), "src", "product__media"],
     [$("img").first(), "src", "first_img"],
   ];
   for (const [tag, attr, method] of strategies) {
-    const val = tag.attr(attr);
+    let val = tag.attr(attr);
+    if (val && val.startsWith('//')) val = 'https:' + val;
     if (val) {
       return {
         image_url: val,
