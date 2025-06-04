@@ -1,5 +1,7 @@
 # OpenAI Get Item Image
 
+![Demo](./demo.gif)
+
 This repository demonstrates how to use OpenAI's Response API (with GPT-4.1 and tool calling) to extract the main product image URL from an e-commerce product page. It provides both Python and TypeScript implementations, returning a structured output for easy integration.
 
 ## Features
@@ -33,7 +35,7 @@ flowchart TD
 
 ## Example Output
 
-``` sh
+```json
 {
   "image_url": "http://minecraftshop.com/cdn/shop/files/MINE-PLU1_R_MF_1200x1200.jpg?v=1729532536",
   "source_url": "https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush",
@@ -91,13 +93,13 @@ npm install
 ### Python
 
 ```sh
-python get_item_image.py
+python get_item_image.py "https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush"
 ```
 
 ### TypeScript
 
 ```sh
-npx ts-node get_item_image.ts
+npx ts-node get_item_image.ts "https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush"
 ```
 
 ## File Overview
@@ -105,6 +107,7 @@ npx ts-node get_item_image.ts
 - `get_item_image.py` — Python implementation
 - `get_item_image.ts` — TypeScript/Node.js implementation
 - `.env.sample` — Example environment variable file
+- `demo.gif` — Demo animation
 
 ## License
 

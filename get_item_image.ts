@@ -117,8 +117,13 @@ const tools: any[] = [
 ];
 
 async function main() {
+  const url = process.argv[2];
+  if (!url) {
+    console.error('Usage: npx ts-node get_item_image.ts <product_url>');
+    process.exit(1);
+  }
   const inputMessages: any[] = [
-    { role: "user", content: "Get the image for https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush" },
+    { role: "user", content: `Get the image for ${url}` },
   ];
 
   const response = await client.responses.create({
@@ -157,6 +162,7 @@ async function main() {
 
   const finalResult = JSON.parse(response2.output_text);
   console.log(finalResult);
+  process.exit(0);
 }
 
 main();

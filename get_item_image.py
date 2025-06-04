@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import sys
 from openai import OpenAI
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -105,43 +106,50 @@ tools = [{
     "strict": True
 }]
 
-input_messages = [{"role": "user", "content": "Get the image for https://minecraftshop.com/collections/plush/products/minecraft-goat-8-plush"}]
+def main():
+    if len(sys.argv) < 2:
+        print('Usage: python get_item_image.py <product_url>')
+        sys.exit(1)
+    product_url = sys.argv[1]
 
-response = client.responses.create(
-    model=os.environ["AZURE_OPENAI_API_MODEL"],
-    input=input_messages,
-    tools=tools,
-    temperature=0.0,
-    
-)
+    input_messages = [{"role": "user", "content": f"Get the image for {product_url}"}]
 
-tool_call = response.output[0]
-args = json.loads(tool_call.arguments)
+    response = client.responses.create(
+        model=os.environ["AZURE_OPENAI_API_MODEL"],
+        input=input_messages,
+        tools=tools,
+        temperature=0.0,
+    )
 
-# When calling extract_image_url, return the structured response as JSON
-result = extract_image_url(args["product_url"])
+    tool_call = response.output[0]
+    args = json.loads(tool_call.arguments)
 
-input_messages.append(tool_call)  # append model's function call message
-input_messages.append({                               # append result message
-    "type": "function_call_output",
-    "call_id": tool_call.call_id,
-    "output": json.dumps(result)
-})
+    # When calling extract_image_url, return the structured response as JSON
+    result = extract_image_url(args["product_url"])
 
-response_2 = client.responses.create(
-    model=os.environ["AZURE_OPENAI_API_MODEL"],
-    input=input_messages,
-    tools=tools,
-    text={
-        "format": {
-            "type": "json_schema",
-            "name": "image_extraction_result",
-            "schema": image_schema,
-            "strict": True
+    input_messages.append(tool_call)  # append model's function call message
+    input_messages.append({                               # append result message
+        "type": "function_call_output",
+        "call_id": tool_call.call_id,
+        "output": json.dumps(result)
+    })
+
+    response_2 = client.responses.create(
+        model=os.environ["AZURE_OPENAI_API_MODEL"],
+        input=input_messages,
+        tools=tools,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "image_extraction_result",
+                "schema": image_schema,
+                "strict": True
+            }
         }
-    }
-)
+    )
 
-result = json.loads(response_2.output_text)
+    result = json.loads(response_2.output_text)
+    print(result)
 
-print(result)
+if __name__ == "__main__":
+    main()
