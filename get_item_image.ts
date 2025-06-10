@@ -16,20 +16,32 @@ const imageSchema = {
   type: "object",
   properties: {
     image_url: { type: "string" },
-    source_url: { type: "string" },
+    original_url: { type: "string", description: "The original URL that was provided as input" },
+    source_url: { type: "string", description: "The final URL that was used to extract the image (after redirects)" },
     found_method: { type: "string", description: "How the image was found (og:image, product__media, first_img)" },
   },
-  required: ["image_url", "source_url", "found_method"],
+  required: ["image_url", "original_url", "source_url", "found_method"],
   additionalProperties: false,
 };
 
 // Extract image URL with structured output
 async function extractImageUrl(productUrl: string) {
-  const response = await axios.get(productUrl);
+  // Handle Amazon short URLs (a.co) by following redirects
+  let finalUrl = productUrl;
+  if (productUrl.includes('a.co/')) {
+    try {
+      const redirectResponse = await axios.get(productUrl, { maxRedirects: 5 });
+      finalUrl = redirectResponse.request.res.responseUrl || productUrl;
+    } catch (e) {
+      // If redirect fails, continue with original URL
+    }
+  }
+
+  const response = await axios.get(finalUrl);
   const $ = cheerio.load(response.data);
 
   // Amazon-specific extraction
-  if (productUrl.includes('amazon.')) {
+  if (finalUrl.includes('amazon.') || productUrl.includes('a.co/')) {
     // Try to get the main image from the dynamic image data attribute
     const imgTag = $('#imgTagWrapperId img');
     const dataImage = imgTag.attr('data-a-dynamic-image');
@@ -40,7 +52,8 @@ async function extractImageUrl(productUrl: string) {
         if (firstImage) {
           return {
             image_url: firstImage.startsWith('http') ? firstImage : `https:${firstImage}`,
-            source_url: productUrl,
+            original_url: productUrl,
+            source_url: finalUrl,
             found_method: 'amazon:data-a-dynamic-image',
           };
         }
@@ -53,7 +66,8 @@ async function extractImageUrl(productUrl: string) {
     if (ogImage) {
       return {
         image_url: ogImage,
-        source_url: productUrl,
+        original_url: productUrl,
+        source_url: finalUrl,
         found_method: 'og:image',
       };
     }
@@ -68,7 +82,8 @@ async function extractImageUrl(productUrl: string) {
       if (src) {
         return {
           image_url: src,
-          source_url: productUrl,
+          original_url: productUrl,
+          source_url: finalUrl,
           found_method: 'amazon:img[src]',
         };
       }
@@ -87,14 +102,16 @@ async function extractImageUrl(productUrl: string) {
     if (val) {
       return {
         image_url: val,
-        source_url: productUrl,
+        original_url: productUrl,
+        source_url: finalUrl,
         found_method: method,
       };
     }
   }
   return {
     image_url: null,
-    source_url: productUrl,
+    original_url: productUrl,
+    source_url: finalUrl,
     found_method: "not_found",
   };
 }

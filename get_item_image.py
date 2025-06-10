@@ -19,20 +19,31 @@ image_schema = {
     "type": "object",
     "properties": {
         "image_url": {"type": "string"},
-        "source_url": {"type": "string"},
+        "original_url": {"type": "string", "description": "The original URL that was provided as input"},
+        "source_url": {"type": "string", "description": "The final URL that was used to extract the image (after redirects)"},
         "found_method": {"type": "string", "description": "How the image was found (og:image, product__media, first_img)"}
     },
-    "required": ["image_url", "source_url", "found_method"],
+    "required": ["image_url", "original_url", "source_url", "found_method"],
     "additionalProperties": False
 }
 
 # Update extract_image_url to return structured output
 def extract_image_url(product_url):
-    response = requests.get(product_url)
+    # Handle Amazon short URLs (a.co) by following redirects
+    final_url = product_url
+    if 'a.co/' in product_url:
+        try:
+            redirect_response = requests.get(product_url, allow_redirects=True)
+            final_url = redirect_response.url
+        except Exception:
+            # If redirect fails, continue with original URL
+            pass
+
+    response = requests.get(final_url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Amazon-specific extraction
-    if 'amazon.' in product_url:
+    if 'amazon.' in final_url or 'a.co/' in product_url:
         # Try to get the main image from the dynamic image data attribute
         img_tag = soup.find('img', id='landingImage')
         data_image = img_tag['data-a-dynamic-image'] if img_tag and img_tag.has_attr('data-a-dynamic-image') else None
@@ -44,7 +55,8 @@ def extract_image_url(product_url):
                     url = first_image if first_image.startswith('http') else f'https:{first_image}'
                     return {
                         "image_url": url,
-                        "source_url": product_url,
+                        "original_url": product_url,
+                        "source_url": final_url,
                         "found_method": "amazon:data-a-dynamic-image"
                     }
             except Exception:
@@ -54,7 +66,8 @@ def extract_image_url(product_url):
         if og_image and og_image.get('content'):
             return {
                 "image_url": og_image['content'],
-                "source_url": product_url,
+                "original_url": product_url,
+                "source_url": final_url,
                 "found_method": "og:image"
             }
         # Fallback: look for first large image in the page
@@ -65,7 +78,8 @@ def extract_image_url(product_url):
                     src = 'https:' + src
                 return {
                     "image_url": src,
-                    "source_url": product_url,
+                    "original_url": product_url,
+                    "source_url": final_url,
                     "found_method": "amazon:img[src]"
                 }
 
@@ -82,12 +96,14 @@ def extract_image_url(product_url):
         if val:
             return {
                 "image_url": val,
-                "source_url": product_url,
+                "original_url": product_url,
+                "source_url": final_url,
                 "found_method": method
             }
     return {
         "image_url": None,
-        "source_url": product_url,
+        "original_url": product_url,
+        "source_url": final_url,
         "found_method": "not_found"
     }
 
